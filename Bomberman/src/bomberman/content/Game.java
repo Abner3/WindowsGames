@@ -8,9 +8,7 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -19,23 +17,24 @@ import javax.imageio.ImageIO;
 
 import bomberman.content.Bomb.ExplosionFlame;
 import bomberman.gui.GameGraphics;
-import game.engine2D.AbstractGame;
-import game.engine2D.BoundingBox;
-import game.engine2D.Entity;
-import game.engine2D.Screen;
 
-public class Game extends AbstractGame {
+import game.engine2D.Engine2DGame;
+import game.engine2D.Engine2DPolygonBoundingBox.Engine2DRectangleBoundingBox;
+import game.engine2D.Engine2DRectangleBoundingBoxEntity;
+import game.engine2D.Engine2DScreen;
+import game.engine2D.Engine2DEntity;
+
+public class Game extends Engine2DGame {
+	protected static final String PLAYERS_KEY = "0x12fd";
+	protected static final String POWERUP_KEY = "0x15ec";
+	protected static final String WALLS_KEY = "0x84fg";
+	protected static final String OBSTACLES_KEY = "0x47af";
+	protected static final String BOMBS_KEY = "0x53ba";
 	private final int[][] BATTLE_FIELD = new int[17][11];
-	private final HashMap<String, Entity> entiteys;
-	private final List<Player> players = new ArrayList<>();
-	private final List<PowerUp> specials = new ArrayList<>();
-	private final List<Wall> walls = new ArrayList<>();
-	private final List<Obstacle> obstacles = new ArrayList<>();
-	private final List<Bomb> bombs = new ArrayList<>();
 	private BufferedImage sprite_sheet;
 	private boolean gameover = false;
-	private Player player1, player2;
-	private Screen gui;
+	private Character player1, player2;
+	private Engine2DScreen gui;
 
 	public Game() {
 		super("BomberMan", 766, 620, false);
@@ -44,11 +43,11 @@ public class Game extends AbstractGame {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		this.entiteys = new HashMap<>();
+		setupList();
 		init();
 	}
 
-	@Override
+	
 	/**
 	 * initiate method which set up the battlefield with the brick
 	 * wall(Obstacle) and walls, Battle field array represent the map in terms
@@ -61,7 +60,7 @@ public class Game extends AbstractGame {
 				if (j % 2 == 1 && i % 2 == 1 && (i != 0 || i != 16)) {
 					BATTLE_FIELD[j][i] = 1;
 					Wall wall = new Wall(((j + 1) * 40), ((i + 1) * 40), this);
-					walls.add(wall);
+					addEntityToList(WALLS_KEY, wall);
 
 					/*
 					 * j+1 and i+1 because it should not be placed at the border
@@ -72,44 +71,52 @@ public class Game extends AbstractGame {
 					int x = rnd.nextInt(3);
 					if (x == 1 || x == 2) { // fill up as many spaces as
 											// possible
-						/*BATTLE_FIELD[j][i] = 2;
+						BATTLE_FIELD[j][i] = 2;
 						Obstacle obs = new Obstacle(index++, ((j + 1) * 40), ((i + 1) * 40), this);
-						obstacles.add(obs);
-						entiteys.put(j + "x" + i + "y", obs);*/
+						addEntityToList(OBSTACLES_KEY, obs);
 					}
 				}
 			}
 		}
-
-		// TO DO: Better method to add player
 		addPlayers();
-		gui = new GameGraphics(this);
+		String[] keys = {PLAYERS_KEY,POWERUP_KEY,WALLS_KEY,OBSTACLES_KEY,BOMBS_KEY};
+		gui = new GameGraphics(this,keys);
 		addScreen(gui);
 		setScreen(0);
 		gameover = false;
 		start(60);
 	}
+	
+	private void setupList(){
+		GameThreadList<Engine2DEntity> players = new GameThreadList<>();
+		GameThreadList<Engine2DEntity> powerups = new GameThreadList<>();
+		GameThreadList<Engine2DEntity> bombs = new GameThreadList<>();
+		GameThreadList<Engine2DEntity> walls = new GameThreadList<>();
+		GameThreadList<Engine2DEntity> obstacles = new GameThreadList<>();
+		addEntityList(PLAYERS_KEY, players);
+		addEntityList(POWERUP_KEY, powerups);
+		addEntityList(BOMBS_KEY, bombs);
+		addEntityList(WALLS_KEY, walls);
+		addEntityList(OBSTACLES_KEY, obstacles);
+	}
 
 	private void addPlayers() {
-		player1 = new Player(1, 40, 40, this); // for starting stage only
+		player1 = new Player(1, 42, 42, this); // for starting stage only
 		addThread(new Thread(player1));
-		players.add(player1);
-		player2 = new Computer(2, (17 * 40), 40, this); // for starting stage only
+		addEntityToList(PLAYERS_KEY, player1);
+		player2 = new Player(2, (17 * 40) + 2, 42, this); /* for starting stage
+															 only */
 		addThread(new Thread(player2));
-		players.add(player2);
+		addEntityToList(PLAYERS_KEY, player2);
 
 	}
 
 	@Override
 	public void gameLoop() {
-		if (!gameover) {
-			run();
-			gui.repaint();
-			if (players.size() == 1) {
-				gameover(); //if there is only one player then game will be over
-			}
-			checkGameover();
+		if (getEntityList(PLAYERS_KEY).size() == 1) {
+			gameOver(); // if there is only one player then game will be over
 		}
+		checkGameover();
 	}
 
 	/**
@@ -127,41 +134,6 @@ public class Game extends AbstractGame {
 	}
 
 	/**
-	 * @return the walls
-	 */
-	public List<Wall> getWalls() {
-		return walls;
-	}
-
-	/**
-	 * @return the obstacles
-	 */
-	public List<Obstacle> getObstacles() {
-		return obstacles;
-	}
-
-	/**
-	 * @return the players
-	 */
-	public List<Player> getPlayers() {
-		return players;
-	}
-
-	/**
-	 * @return the bombs
-	 */
-	public List<Bomb> getBombs() {
-		return bombs;
-	}
-
-	/**
-	 * @return the power-ups
-	 */
-	public List<PowerUp> getSpecials() {
-		return specials;
-	}
-
-	/**
 	 * returns the exact sprite image using the x position and the multiply by
 	 * block size which is 40 to locate the image x and y coordinate on the
 	 * sprite sheet
@@ -175,28 +147,33 @@ public class Game extends AbstractGame {
 	public Image getSprite(int x, int y, int width, int height) {
 		return sprite_sheet.getSubimage((x * 40), (y * 40), width, height);
 	}
-	
-	protected Bomb bombCollision(Entity e){
-		for(Bomb bomb : getBombs()){
-			if(e.getBoundingBox().checkCollision(bomb.getBoundingBox())){
+
+	protected Bomb bombCollision(Engine2DRectangleBoundingBoxEntity e) {
+		for (Engine2DEntity entity : getEntityList(BOMBS_KEY)) {
+			Bomb bomb = (Bomb)entity;
+			if (e.getBoundingBox().checkCollision(bomb.getBoundingBox())) {
 				return bomb;
 			}
 		}
 		return null;
-		
+
 	}
 
 	/**
-	 * the method checks if the player is on top of the bomb and around the center 
+	 * the method checks if the player is on top of the bomb and around the
+	 * center
 	 */
 	protected void updateWalkable() {
-		if (!bombs.isEmpty()) {
-			for (Bomb bomb : getBombs()) {
-				for (Player player : getPlayers()) {
-					if (bomb.getBoundingBox().checkCollision(player.getBoundingBox())){
-						BoundingBox box = new BoundingBox(bomb.getX() + 4,bomb.getY()+4,bomb.getWidth()-4,bomb.getHeight()-4);			
-						if(player.getBoundingBox().checkCollision(box)){
-						player.addWalkable(bomb);
+		if (!getEntityList(BOMBS_KEY).isEmpty()) {
+			for (Engine2DEntity entity : getEntityList(BOMBS_KEY)) {
+				Bomb bomb = (Bomb)entity;
+				for (Engine2DEntity entity2 : getEntityList(PLAYERS_KEY)) {
+					Character player = (Character)entity2;
+					if (bomb.getBoundingBox().checkCollision(player.getBoundingBox())) {
+						Engine2DRectangleBoundingBox box = new Engine2DRectangleBoundingBox(bomb.getX() + 4, bomb.getY() + 4, bomb.getWidth() - 4,
+								bomb.getHeight() - 4);
+						if (player.getBoundingBox().checkCollision(box)) {
+							player.addWalkable(bomb);
 						}
 					}
 				}
@@ -228,23 +205,22 @@ public class Game extends AbstractGame {
 	 */
 	void addBomb(Bomb bomb) {
 		if (checkAvailability((bomb.getX() / 40), (bomb.getY() / 40))) {
-			bombs.add(bomb);
+			addEntityToList(BOMBS_KEY, bomb);
 			BATTLE_FIELD[(bomb.getX() / 40) - 1][(bomb.getY() / 40) - 1] = 3;
 		}
 	}
 
 	public void addSpecials(PowerUp power) {
-		specials.add(power);
-		System.out.println((power.getX()/40) + "\t" + (power.getY()/40) + "\tpower");
-		BATTLE_FIELD[(power.getX()/40) - 1][(power.getY()/40) - 1] = 4;
-		System.out.println(BATTLE_FIELD[(power.getX()/40) - 1][(power.getY()/40) - 1]);
+		addEntityToList(POWERUP_KEY, power);
+		BATTLE_FIELD[(power.getX() / 40) - 1][(power.getY() / 40) - 1] = 4;
 	}
-	
+
 	/**
 	 * checks if the explosions have touched any of the player
 	 */
 	synchronized void checkGameover() {
-		for (Bomb bomb : getBombs()) {
+		for (Engine2DEntity entity : getEntityList(BOMBS_KEY)) {
+			Bomb bomb = (Bomb)entity;
 			if (bomb.getDetonated()) {
 				for (ExplosionFlame exp : bomb.getExplostions()) {
 					bomb.playerHit(exp.getBoundingBox().getX(), exp.getBoundingBox().getY());
@@ -289,43 +265,27 @@ public class Game extends AbstractGame {
 	}
 
 	/**
-	 * The method checks if the entity is overlapping/colliding with any of the walls or obstacles
+	 * The method checks if the entity is overlapping/colliding with any of the
+	 * walls or obstacles
 	 * 
-	 * @param box the entity bounding box
+	 * @param box
+	 *            the entity bounding box
 	 * @return the entity it is colliding with
 	 */
-	Entity checkCollision(BoundingBox box) {
-		for (Wall wall : walls) {
+	Engine2DRectangleBoundingBoxEntity checkCollision(Engine2DRectangleBoundingBox box) {
+		for (Engine2DEntity entity : getEntityList(WALLS_KEY)) {
+			Wall wall = (Wall)entity;
 			if (wall.getBoundingBox().checkCollision(box)) {
 				return wall;
 			}
 		}
-		for (Obstacle obs : obstacles) {
+		for (Engine2DEntity entity : getEntityList(OBSTACLES_KEY)) {
+			Obstacle obs = (Obstacle)entity;
 			if (obs.getBoundingBox().checkCollision(box)) {
 				return obs;
 			}
 		}
 		return null;
-	}
-
-	public Entity getEntity(String key) {
-		return entiteys.get(key);
-	}
-
-	public Set<String> getKeys() {
-		return entiteys.keySet();
-	}
-
-	public void removeEntity(int x, int y) {
-		entiteys.remove(x + "x" + y + "y");
-	}
-
-	public void removeObstacle(int index) {
-		obstacles.remove(index);
-	}
-
-	public void gameover() {
-		gameover = true;
 	}
 
 	@Override
@@ -334,8 +294,9 @@ public class Game extends AbstractGame {
 
 	}
 
-	public boolean gameOver() {
-		return gameover;
+	@Override
+	public void gameOver() {
+		gameover = true;
 	}
 
 }

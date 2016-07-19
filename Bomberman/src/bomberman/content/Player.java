@@ -12,9 +12,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import game.engine2D.BoundingBox;
-import game.engine2D.Entity;
-
 public class Player extends Character {
 	private final Game game;
 	private final Image[][] skins = new Image[4][7];
@@ -72,30 +69,28 @@ public class Player extends Character {
 	 */
 	public synchronized void play() {
 		if (character == 1) {
-			if (leftPressed) {
+			if (leftPressed || aPressed) {
 				skin = 2;
 				moveLeft();
-			} if (rightPressed) {
+			} if (rightPressed || dPressed) {
 				skin = 3;
 				moveRight();
-				game.checkCollision(getBoundingBox());
-			} if (upPressed) {
+			} if (upPressed || wPressed) {
 				skin = 1;
 				moveUp();
-			} if (downPressed) {
+			} if (downPressed || sPressed) {
 				skin = 0;
 				moveDown();
-			} if (mPressed) {
+			} if (mPressed || sPressed) {
 				plantBomb();
 			}
-		} else if (character == 2) {
+		}else if(character == 2){
 			if (aPressed) {
 				skin = 2;
 				moveLeft();
 			} if (dPressed) {
 				skin = 3;
 				moveRight();
-				game.checkCollision(getBoundingBox());
 			} if (wPressed) {
 				skin = 1;
 				moveUp();
@@ -107,16 +102,6 @@ public class Player extends Character {
 			}
 		}
 		game.updateWalkable();
-	}
-	
-	@Override
-	/**
-	 * what is executed when thread is set to run or start TODO : implement this
-	 */
-	public void run() {
-		play();
-		pickPower();
-		updateWalkable();
 	}
 	
 	private class KeyInput extends KeyAdapter{
@@ -228,5 +213,14 @@ public class Player extends Character {
 			}
 		}
 	}
+
+	@Override
+	public void update() {
+		play();
+		pickPower();
+		updateWalkable();
+		game.render();
+	}
+
 
 }

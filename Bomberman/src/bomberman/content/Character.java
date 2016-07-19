@@ -5,11 +5,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import game.engine2D.AbstractGame;
-import game.engine2D.BoundingBox;
-import game.engine2D.Entity;
+import game.engine2D.Engine2DEntity;
+import game.engine2D.Engine2DMovableRectangleBoundingBoxEntity;
+import game.engine2D.Engine2DRectangleBoundingBoxEntity;
 
-public abstract class Character extends Entity implements Runnable{
+public abstract class Character extends Engine2DMovableRectangleBoundingBoxEntity{
 	private final Game game;
 	private final Image[][] skins = new Image[4][7];
 	private int bombs, explosion_size;
@@ -71,16 +71,15 @@ public abstract class Character extends Entity implements Runnable{
 					skins[j][i] = game.getSprite(j, running, 36, 36);
 				}
 			}
-			running = 0;
 		} else if (character == 2) {
 			for (int i = 2; i < 7; i++) {
 				for (int j = 0; j < 4; j++) {
-					int running = i + 1;
-					skins[j][i] = game.getSprite(j, running, 36, 36);
+					int motion = i + 3;
+					skins[j][i] = game.getSprite(j, motion, 36, 36);
 				}
 			}
-			running = 3;
 		}
+		running = 0;
 	}
 
 	/**
@@ -95,8 +94,8 @@ public abstract class Character extends Entity implements Runnable{
 	public void moveUp() {
 		if (getY() > 40){
 			getBoundingBox().moveY(1, -speed);
-			Entity entity = game.checkCollision(getBoundingBox());
-			Bomb bomb = game.bombCollision((Entity)this);
+			Engine2DRectangleBoundingBoxEntity entity = game.checkCollision(getBoundingBox());
+			Bomb bomb = game.bombCollision((Engine2DRectangleBoundingBoxEntity)this);
 			if (entity != null) {
 				moveDown();
 				if((this.getX() + (this.getWidth()/2)) <= (entity.getX())){
@@ -117,8 +116,8 @@ public abstract class Character extends Entity implements Runnable{
 	public void moveDown() {
 		if (getY() < (11 * 40) + 2){
 			getBoundingBox().moveY(1, speed);
-			Entity entity = game.checkCollision(getBoundingBox());
-			Bomb bomb = game.bombCollision((Entity)this);
+			Engine2DRectangleBoundingBoxEntity entity = game.checkCollision(getBoundingBox());
+			Bomb bomb = game.bombCollision((Engine2DRectangleBoundingBoxEntity)this);
 			if (entity != null) {
 				moveUp();
 				if((this.getX() + (this.getWidth()/2)) <= entity.getX()){
@@ -139,8 +138,8 @@ public abstract class Character extends Entity implements Runnable{
 	public void moveLeft() {
 		if (getX() > 40) {
 			getBoundingBox().moveX(1, -speed);
-			Entity entity = game.checkCollision(getBoundingBox());
-			Bomb bomb = game.bombCollision((Entity)this);
+			Engine2DRectangleBoundingBoxEntity entity = game.checkCollision(getBoundingBox());
+			Bomb bomb = game.bombCollision((Engine2DRectangleBoundingBoxEntity)this);
 			if (entity != null) {
 				moveRight();
 				if((this.getY() + (this.getHeight()/2)) <= entity.getY()){
@@ -161,8 +160,8 @@ public abstract class Character extends Entity implements Runnable{
 	public void moveRight() {
 		if ((getX() < (17 * 40) + 4)){
 			getBoundingBox().moveX(1, speed);
-			Entity entity = game.checkCollision(getBoundingBox());
-			Bomb bomb = game.bombCollision((Entity)this);
+			Engine2DRectangleBoundingBoxEntity entity = game.checkCollision(getBoundingBox());
+			Bomb bomb = game.bombCollision(this);
 			if (entity != null) {
 				moveLeft();
 				if((this.getY() + (this.getHeight()/2)) <= (entity.getY())){
@@ -195,7 +194,7 @@ public abstract class Character extends Entity implements Runnable{
 			int middleY = getY() + (getHeight() / 2);
 			int y = middleY / 40;
 			Bomb bomb = new Bomb(this, (x * 40), (y * 40), 4, explosion_size, game);
-			if (game.getBombs().contains(bomb)) {
+			if (game.getEntityList(Game.BOMBS_KEY).contains(bomb)) {
 				bombs--;
 			}
 		}
@@ -217,7 +216,7 @@ public abstract class Character extends Entity implements Runnable{
 	 * @see
 	 * 		Player#play() play()
 	 */
-	protected void updateWalkable(){
+	protected synchronized void updateWalkable(){
 		Iterator<Bomb> bombs = ontop.iterator();
 		while(bombs.hasNext()){
 			Bomb bomb = bombs.next();
@@ -233,9 +232,8 @@ public abstract class Character extends Entity implements Runnable{
 	 * 
 	 */
 	protected void pickPower() {
-		Iterator<PowerUp> specials = game.getSpecials().iterator();
-		while (specials.hasNext()) {
-			PowerUp power = specials.next();
+		for(Engine2DEntity entity : game.getEntityList(Game.POWERUP_KEY)){
+			PowerUp power = (PowerUp)entity;
 			if (power.getBoundingBox().checkCollision(getBoundingBox())) {
 				if (power.getID() == 1) {
 					explosion_size--;
@@ -261,7 +259,7 @@ public abstract class Character extends Entity implements Runnable{
 					speed++;
 				}
 				game.makeAvailable((power.getX()/40), (power.getY()/40));
-				specials.remove();
+				game.removeEntityFromList(Game.POWERUP_KEY, entity);
 			}
 		}
 	}
@@ -339,11 +337,13 @@ public abstract class Character extends Entity implements Runnable{
 	 *         is 0 or 1
 	 */
 	public Image getImage() {
-		if (running == 0) {
+		switch(character){
+		case 1:
 			return skins[skin][running];
-		} else {
-			return skins[skin][running];
+		case 2:
+			return skins[skin][running + 3];
 		}
+		return null;
 	}
 	
 

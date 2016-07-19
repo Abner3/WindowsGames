@@ -6,10 +6,9 @@ package bomberman.content;
 
 import java.awt.Image;
 
-import game.engine2D.BoundingBox;
-import game.engine2D.Entity;
+import game.engine2D.Engine2DRectangleBoundingBoxEntity;
 
-public class Wall extends Entity{
+public class Wall extends Engine2DRectangleBoundingBoxEntity{
 private final Image wall;
 
 	/**

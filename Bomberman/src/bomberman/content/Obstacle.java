@@ -6,9 +6,9 @@ package bomberman.content;
 
 import java.awt.Image;
 
-import game.engine2D.Entity;
+import game.engine2D.Engine2DRectangleBoundingBoxEntity;
 
-public class Obstacle extends Entity{
+public class Obstacle extends Engine2DRectangleBoundingBoxEntity{
 private final Image obstacle;
 private final int id;
 

@@ -12,10 +12,11 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import game.engine2D.BoundingBox;
-import game.engine2D.Entity;
+import game.engine2D.Engine2DEntity;
+import game.engine2D.Engine2DPolygonBoundingBox.Engine2DRectangleBoundingBox;
+import game.engine2D.Engine2DRectangleBoundingBoxEntity;
 
-public class Bomb extends Entity {
+public class Bomb extends Engine2DRectangleBoundingBoxEntity {
 	private final Game game;
 	private final Image bomb[] = new Image[3];
 	private final Character player;
@@ -37,7 +38,7 @@ public class Bomb extends Entity {
 		setSkin();
 		game.addBomb(this);
 
-		if (game.getBombs().contains(this)) {
+		if (game.getEntityList(Game.BOMBS_KEY).contains(this)) {
 			countdown = new Timer();
 			countdown.scheduleAtFixedRate(new TimerTask() {
 
@@ -202,13 +203,12 @@ public class Bomb extends Entity {
 	 * @param box
 	 *            the bounding box of the ExplosionFlame
 	 */
-	public synchronized void destroyPowerUp(int xPos, int yPos) {
-		Iterator<PowerUp> specials = game.getSpecials().iterator();
-		while (specials.hasNext()) {
-			PowerUp power = specials.next();
+	public void destroyPowerUp(int xPos, int yPos) {
+		for(Engine2DEntity entity : game.getEntityList(Game.POWERUP_KEY)){
+			PowerUp power = (PowerUp)entity;
 			if (power.getX() == xPos && power.getY() == yPos) {
 				game.makeAvailable(power.getX() / 40, power.getY() / 40);
-				specials.remove();
+				game.removeEntityFromList(Game.POWERUP_KEY, entity);
 			}
 		}
 	}
@@ -222,20 +222,25 @@ public class Bomb extends Entity {
 	 * @param y
 	 *            the y position of the wall on the map
 	 */
-	public synchronized void destroyObstacle(int x, int y) {
+	public void destroyObstacle(int x, int y) {
 		int xPos = x - 1;
 		int yPos = y - 1;
-		Obstacle obs = (Obstacle) game.getEntity(xPos + "x" + yPos + "y");
-		game.getObstacles().remove(obs);
-		game.removeEntity(xPos, yPos);
+		Obstacle obs = null;
+		for(Engine2DEntity entity : game.getEntityList(Game.OBSTACLES_KEY)){
+			obs = (Obstacle)entity;
+			if(obs.getBoundingBox().getX() == xPos && obs.getBoundingBox().getY() == yPos){
+				game.removeEntityFromList(Game.OBSTACLES_KEY, entity);
+			}
+		}
 		Random rnd = new Random();
 		int num = rnd.nextInt(6) + 1; // random number between 1 to 6
 		PowerUp power = new PowerUp(num, (xPos + 1) * 40, (yPos + 1) * 40, game);
-		game.addSpecials(power);
+		game.addEntityToList(Game.POWERUP_KEY, power);
 	}
 
-	public void detonateBomb(BoundingBox box) {
-		for (Bomb bomb : game.getBombs()) {
+	public void detonateBomb(Engine2DRectangleBoundingBox box) {
+		for (Engine2DEntity entity : game.getEntityList(Game.BOMBS_KEY)) {
+			Bomb bomb = (Bomb)entity;
 			if (box.checkCollision(bomb.getBoundingBox()) && bomb.getDetonated() == false) {
 				bomb.detonateNow();
 			}
@@ -253,14 +258,13 @@ public class Bomb extends Entity {
 	 */
 	public void playerHit(int x, int y) {
 
-		BoundingBox explosion = new BoundingBox(x, y, 40, 40);
-		BoundingBox playerBox;
-		Iterator<Player> players = game.getPlayers().iterator();
-		while (players.hasNext()) {
-			Player player = players.next();
+		Engine2DRectangleBoundingBox explosion = new Engine2DRectangleBoundingBox(x, y, 40, 40);
+		Engine2DRectangleBoundingBox playerBox;
+		for(Engine2DEntity entity : game.getEntityList(Game.PLAYERS_KEY)){
+			Character player = (Character)entity;
 			playerBox = player.getBoundingBox();
 			if (playerBox.checkCollision(explosion) || playerBox.checkCollision(getBoundingBox())) {
-				players.remove();
+				game.removeEntityFromList(Game.PLAYERS_KEY, entity);
 			}
 		}
 	}
@@ -328,7 +332,7 @@ public class Bomb extends Entity {
 		return detonated;
 	}
 
-	public class ExplosionFlame extends Entity {
+	public class ExplosionFlame extends Engine2DRectangleBoundingBoxEntity {
 
 		/**
 		 * 
